@@ -87,6 +87,15 @@ function scaled(c, s) {
   const o = document.createElement('canvas'); o.width = Math.max(1, Math.round(c.width * s)); o.height = Math.max(1, Math.round(c.height * s));
   const g = o.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, o.width, o.height); return o;
 }
+// use up what's left of the limit: the same quality at a slightly larger size (some browsers' quality steps are coarse)
+async function fillUp(base, s, q, best, maxBytes) {
+  let lo = s, hi = Math.min(1, s / 0.85);
+  for (let i = 0; i < 6 && hi - lo > 0.002; i++) {
+    const m = (lo + hi) / 2, c = scaled(base, m), b = await encode(c, q);
+    if (b.size <= maxBytes) { lo = m; best = { blob: b, q, w: c.width, h: c.height }; } else hi = m;
+  }
+  return best;
+}
 // the largest size at which quality 72% fits; then the highest quality that fits at that size
 async function fitImage(base, maxBytes) {
   const long = Math.max(base.width, base.height); let s = 1, c = base;
@@ -95,10 +104,10 @@ async function fitImage(base, maxBytes) {
     const mid = await encode(c, 0.72);
     if (mid.size <= maxBytes) {
       const top = await encode(c, 0.95);
-      if (top.size <= maxBytes) return { blob: top, q: 0.95, w: c.width, h: c.height };
+      if (top.size <= maxBytes) return fillUp(base, s, 0.95, { blob: top, q: 0.95, w: c.width, h: c.height }, maxBytes);
       let lo = 0.72, hi = 0.95, blob = mid;
       for (let i = 0; i < 7; i++) { const q = (lo + hi) / 2, b = await encode(c, q); if (b.size <= maxBytes) { lo = q; blob = b; } else hi = q; }
-      return { blob, q: lo, w: c.width, h: c.height };
+      return fillUp(base, s, lo, { blob, q: lo, w: c.width, h: c.height }, maxBytes);
     }
     if (long * s * 0.85 < 160) break;
     s *= 0.85; c = scaled(base, s);
