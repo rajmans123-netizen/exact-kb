@@ -89,8 +89,8 @@ function scaled(c, s) {
 }
 // use up what's left of the limit: the same quality at a slightly larger size (some browsers' quality steps are coarse)
 async function fillUp(base, s, q, best, maxBytes) {
-  let lo = s, hi = Math.min(1, s / 0.85);
-  for (let i = 0; i < 6 && hi - lo > 0.002; i++) {
+  let lo = s, hi = Math.min(1, s * 1.5);
+  for (let i = 0; i < 9 && hi - lo > 0.001; i++) {
     const m = (lo + hi) / 2, c = scaled(base, m), b = await encode(c, q);
     if (b.size <= maxBytes) { lo = m; best = { blob: b, q, w: c.width, h: c.height }; } else hi = m;
   }
